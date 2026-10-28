@@ -1,0 +1,94 @@
+# Python bytecode, test caches, and coverage
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+/coverage.xml
+
+# Local Python environments; shared interpreter/version configuration stays visible
+.venv/
+venv/
+env/
+ENV/
+.conda/
+.direnv/
+.pdm-python
+.python_history
+.python-version.local
+
+# Secrets, with explicit exceptions for shareable configuration templates
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+!.env.template
+!.env.*.template
+.secrets/
+secrets.local.*
+*.secrets.json
+*.secrets.yaml
+*.secrets.yml
+*.local.key
+*.local.pem
+*.local.p12
+*.local.pfx
+
+# Node dependencies and incremental TypeScript output
+node_modules/
+npm-debug.log*
+*.tsbuildinfo
+
+# Playwright reports, including generated screenshots, traces, and videos
+playwright-report/
+test-results/
+blob-report/
+/screenshots/
+/traces/
+/videos/
+
+# Local SQLite databases and their journal/WAL/temporary companions
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+
+# Generated CI/evaluation output; these two frozen references are test inputs
+/ci-results/*
+!/ci-results/rag-baseline.xml
+!/ci-results/rag-ranking-candidate.xml
+/junit*.xml
+/pytest-results*.xml
+/results.xml
+
+# Local editor state; keep shared .vscode settings, tasks, and launch files
+.vscode/*.local.json
+.vscode/*.db
+.vscode/*.db-*
+.vscode/workspaceStorage/
+.vscode/.ropeproject/
+*.local.code-workspace
+.history/
+
+# Logs, temporary files, and operating-system metadata
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

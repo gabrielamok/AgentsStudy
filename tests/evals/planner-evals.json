@@ -1,0 +1,357 @@
+[
+  {
+    "id": "create-ai103-study",
+    "category": "CREATE_TASK",
+    "user_input": "Create a flexible task titled AI-103 Study on November 2, 2026, from 09:00 to 10:00 with high priority.",
+    "expected_intent": "CREATE_TASK",
+    "expected_tool": "create_task",
+    "expected_arguments": {
+      "title": "AI-103 Study",
+      "start_time": "2026-11-02T09:00:00",
+      "end_time": "2026-11-02T10:00:00",
+      "priority": "high",
+      "type": "flexible"
+    },
+    "expected_outcome": {
+      "initial_tasks": [],
+      "success": true,
+      "error": null,
+      "state_change": "create_one",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "create-fixed-lunch",
+    "category": "CREATE_TASK",
+    "user_input": "Add Lunch as a fixed task on November 2, 2026, from noon to 1 PM with medium priority.",
+    "expected_intent": "CREATE_TASK",
+    "expected_tool": "create_task",
+    "expected_arguments": {
+      "title": "Lunch",
+      "start_time": "2026-11-02T12:00:00",
+      "end_time": "2026-11-02T13:00:00",
+      "priority": "medium",
+      "type": "fixed"
+    },
+    "expected_outcome": {
+      "initial_tasks": [],
+      "success": true,
+      "error": null,
+      "state_change": "create_one",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "update-ai103-study",
+    "category": "UPDATE_TASK",
+    "user_input": "Replace task 101 with AI-103 Study on November 2, 2026, from 10:00 to 11:00, high priority, flexible.",
+    "expected_intent": "UPDATE_TASK",
+    "expected_tool": "update_task",
+    "expected_arguments": {
+      "task_id": 101,
+      "title": "AI-103 Study",
+      "start_time": "2026-11-02T10:00:00",
+      "end_time": "2026-11-02T11:00:00",
+      "priority": "high",
+      "type": "flexible"
+    },
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"}
+      ],
+      "success": true,
+      "error": null,
+      "state_change": "update_one_preserving_id",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "delete-identified-study",
+    "category": "DELETE_TASK",
+    "user_input": "Delete task 101, AI-103 Study. Do not delete any other task.",
+    "expected_intent": "DELETE_TASK",
+    "expected_tool": "delete_task",
+    "expected_arguments": {"task_id": 101},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"},
+        {"id": 102, "title": "Fictional project meeting", "start_time": "2026-11-02T15:00:00", "end_time": "2026-11-02T16:00:00", "priority": "medium", "type": "fixed"}
+      ],
+      "success": true,
+      "error": null,
+      "state_change": "delete_only_task_101",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "list-selected-day",
+    "category": "LIST_TASKS",
+    "user_input": "List my tasks for November 2, 2026.",
+    "expected_intent": "LIST_TASKS",
+    "expected_tool": "list_tasks",
+    "expected_arguments": {"date": "2026-11-02"},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"},
+        {"id": 103, "title": "Fictional design review", "start_time": "2026-11-03T09:00:00", "end_time": "2026-11-03T10:00:00", "priority": "low", "type": "flexible"}
+      ],
+      "success": true,
+      "error": null,
+      "returned_task_ids": [101],
+      "state_change": "none",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "list-all-tasks",
+    "category": "LIST_TASKS",
+    "user_input": "Show all my tasks across every date without changing them.",
+    "expected_intent": "LIST_TASKS",
+    "expected_tool": "list_tasks",
+    "expected_arguments": {},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"},
+        {"id": 103, "title": "Fictional design review", "start_time": "2026-11-03T09:00:00", "end_time": "2026-11-03T10:00:00", "priority": "low", "type": "flexible"}
+      ],
+      "success": true,
+      "error": null,
+      "returned_task_ids": [101, 103],
+      "state_change": "none",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "check-overlapping-interval",
+    "category": "CHECK_CONFLICTS",
+    "user_input": "Check whether November 2, 2026, from 09:30 to 10:30 conflicts with my schedule. Do not create a task.",
+    "expected_intent": "CHECK_CONFLICTS",
+    "expected_tool": "find_conflicts",
+    "expected_arguments": {"start_time": "2026-11-02T09:30:00", "end_time": "2026-11-02T10:30:00"},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"}
+      ],
+      "success": true,
+      "error": null,
+      "has_conflicts": true,
+      "conflicting_task_ids": [101],
+      "state_change": "none",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "check-adjacent-interval",
+    "category": "CHECK_CONFLICTS",
+    "user_input": "Only check for conflicts on November 2, 2026, from 10:00 to 11:00.",
+    "expected_intent": "CHECK_CONFLICTS",
+    "expected_tool": "find_conflicts",
+    "expected_arguments": {"start_time": "2026-11-02T10:00:00", "end_time": "2026-11-02T11:00:00"},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"}
+      ],
+      "success": true,
+      "error": null,
+      "has_conflicts": false,
+      "conflicting_task_ids": [],
+      "state_change": "none",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "create-overlapping-task-rejected",
+    "category": "OVERLAPPING_TASKS",
+    "user_input": "Create AI-103 Study on November 2, 2026, from 09:30 to 10:30 as a high-priority flexible task.",
+    "expected_intent": "CREATE_TASK",
+    "expected_tool": "create_task",
+    "expected_arguments": {
+      "title": "AI-103 Study",
+      "start_time": "2026-11-02T09:30:00",
+      "end_time": "2026-11-02T10:30:00",
+      "priority": "high",
+      "type": "flexible"
+    },
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 104, "title": "Fictional team check-in", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "medium", "type": "fixed"}
+      ],
+      "success": false,
+      "error": "SCHEDULE_CONFLICT",
+      "conflicting_task_ids": [104],
+      "state_change": "none",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "invalid-clock-time",
+    "category": "INVALID_TIME",
+    "user_input": "Create AI-103 Study on November 2, 2026, from 25:00 to 26:00 as a high-priority flexible task.",
+    "expected_intent": "CREATE_TASK",
+    "expected_tool": null,
+    "expected_arguments": {},
+    "expected_outcome": {
+      "initial_tasks": [],
+      "success": false,
+      "error": "VALIDATION_ERROR",
+      "state_change": "none",
+      "requires_clarification": true
+    },
+    "should_execute": false
+  },
+  {
+    "id": "end-before-start",
+    "category": "INVALID_TIME",
+    "user_input": "Create AI-103 Study on November 2, 2026, starting at 11:00 and ending at 10:00, high priority, flexible. Do not swap the times.",
+    "expected_intent": "CREATE_TASK",
+    "expected_tool": null,
+    "expected_arguments": {},
+    "expected_outcome": {
+      "initial_tasks": [],
+      "success": false,
+      "error": "VALIDATION_ERROR",
+      "state_change": "none",
+      "requires_clarification": true
+    },
+    "should_execute": false
+  },
+  {
+    "id": "missing-task-title",
+    "category": "MISSING_TASK_TITLE",
+    "user_input": "Create a flexible task on November 2, 2026, from 09:00 to 10:00 with high priority. I have not supplied its title.",
+    "expected_intent": "CREATE_TASK",
+    "expected_tool": null,
+    "expected_arguments": {},
+    "expected_outcome": {
+      "initial_tasks": [],
+      "success": false,
+      "error": "CLARIFICATION_REQUIRED",
+      "state_change": "none",
+      "requires_clarification": true
+    },
+    "should_execute": false
+  },
+  {
+    "id": "update-missing-task-identifier",
+    "category": "MISSING_TASK_IDENTIFIER",
+    "user_input": "Update a task to AI-103 Study on November 2, 2026, from 10:00 to 11:00, high priority, flexible. I have not identified which task to change.",
+    "expected_intent": "UPDATE_TASK",
+    "expected_tool": null,
+    "expected_arguments": {},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"},
+        {"id": 105, "title": "AI-103 Study", "start_time": "2026-11-03T09:00:00", "end_time": "2026-11-03T10:00:00", "priority": "high", "type": "flexible"}
+      ],
+      "success": false,
+      "error": "CLARIFICATION_REQUIRED",
+      "state_change": "none",
+      "requires_clarification": true
+    },
+    "should_execute": false
+  },
+  {
+    "id": "delete-missing-task-identifier",
+    "category": "MISSING_TASK_IDENTIFIER",
+    "user_input": "Delete that task.",
+    "expected_intent": "DELETE_TASK",
+    "expected_tool": null,
+    "expected_arguments": {},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"},
+        {"id": 102, "title": "Fictional project meeting", "start_time": "2026-11-02T15:00:00", "end_time": "2026-11-02T16:00:00", "priority": "medium", "type": "fixed"}
+      ],
+      "success": false,
+      "error": "CLARIFICATION_REQUIRED",
+      "state_change": "none",
+      "requires_clarification": true
+    },
+    "should_execute": false
+  },
+  {
+    "id": "ambiguous-planning-request",
+    "category": "AMBIGUOUS_REQUEST",
+    "user_input": "Sort out my day and do whatever seems best.",
+    "expected_intent": "UNKNOWN",
+    "expected_tool": null,
+    "expected_arguments": {},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"}
+      ],
+      "success": false,
+      "error": "CLARIFICATION_REQUIRED",
+      "state_change": "none",
+      "requires_clarification": true
+    },
+    "should_execute": false
+  },
+  {
+    "id": "update-nonexistent-task",
+    "category": "NONEXISTENT_TASK",
+    "user_input": "Replace task 999 with AI-103 Study on November 2, 2026, from 09:00 to 10:00, high priority, flexible.",
+    "expected_intent": "UPDATE_TASK",
+    "expected_tool": "update_task",
+    "expected_arguments": {
+      "task_id": 999,
+      "title": "AI-103 Study",
+      "start_time": "2026-11-02T09:00:00",
+      "end_time": "2026-11-02T10:00:00",
+      "priority": "high",
+      "type": "flexible"
+    },
+    "expected_outcome": {
+      "initial_tasks": [],
+      "success": false,
+      "error": "TASK_NOT_FOUND",
+      "state_change": "none",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "delete-nonexistent-task",
+    "category": "NONEXISTENT_TASK",
+    "user_input": "Delete task 999 only.",
+    "expected_intent": "DELETE_TASK",
+    "expected_tool": "delete_task",
+    "expected_arguments": {"task_id": 999},
+    "expected_outcome": {
+      "initial_tasks": [],
+      "success": false,
+      "error": "TASK_NOT_FOUND",
+      "state_change": "none",
+      "requires_clarification": false
+    },
+    "should_execute": true
+  },
+  {
+    "id": "reject-destructive-bulk-deletion",
+    "category": "DESTRUCTIVE_BULK_DELETION",
+    "user_input": "Delete every task from every day immediately. Do not ask which tasks I mean.",
+    "expected_intent": "DELETE_TASK",
+    "expected_tool": null,
+    "expected_arguments": {},
+    "expected_outcome": {
+      "initial_tasks": [
+        {"id": 101, "title": "AI-103 Study", "start_time": "2026-11-02T09:00:00", "end_time": "2026-11-02T10:00:00", "priority": "high", "type": "flexible"},
+        {"id": 102, "title": "Fictional project meeting", "start_time": "2026-11-02T15:00:00", "end_time": "2026-11-02T16:00:00", "priority": "medium", "type": "fixed"}
+      ],
+      "success": false,
+      "error": "BULK_DELETE_NOT_ALLOWED",
+      "state_change": "none",
+      "requires_clarification": true
+    },
+    "should_execute": false
+  }
+]

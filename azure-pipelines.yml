@@ -1,0 +1,323 @@
+trigger:
+  - main
+
+pr:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  pythonVersion: '3.14'
+  nodeVersion: '22.x'
+
+stages:
+  - stage: Build
+    displayName: Build and Static Checks
+    jobs:
+      - job: Build
+        timeoutInMinutes: 15
+        steps:
+          - checkout: self
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+          - bash: python -m pip install -r requirements-dev.txt
+            displayName: Install Python Dependencies
+          - bash: python -m compileall -q agent api
+            displayName: Compile Python Modules
+          - bash: npm ci
+            displayName: Install Locked Node Dependencies
+          - bash: npm run typecheck
+            displayName: Check TypeScript
+
+  - stage: UnitTests
+    displayName: Deterministic Unit Tests (No Live AI)
+    dependsOn: Build
+    jobs:
+      - job: UnitTests
+        timeoutInMinutes: 15
+        steps:
+          - template: .azure-pipelines/pytest-steps.yml
+            parameters:
+              suite: unit-tests
+              targets:
+                - tests/unit
+                - tests/test_repository.py
+                - tests/test_contracts.py
+                - tests/test_tools.py
+                - tests/test_agent.py
+
+  - stage: APITests
+    displayName: Deterministic API Tests (No Live AI)
+    dependsOn: Build
+    jobs:
+      - job: APITests
+        timeoutInMinutes: 15
+        steps:
+          - template: .azure-pipelines/pytest-steps.yml
+            parameters:
+              suite: api-tests
+              targets:
+                - tests/test_api.py
+
+  - stage: AgentEvaluations
+    displayName: AI Agent Dataset Evaluations
+    dependsOn: Build
+    jobs:
+      - job: AgentEvaluations
+        timeoutInMinutes: 30
+        steps:
+          - template: .azure-pipelines/pytest-steps.yml
+            parameters:
+              suite: agent-evaluations
+              targets:
+                - tests/evals/test_agent_evals.py
+              environment:
+                PLANNER_EVAL_AGENT: $(PLANNER_EVAL_AGENT)
+                AZURE_OPENAI_ENDPOINT: $(AZURE_OPENAI_ENDPOINT)
+                AZURE_OPENAI_DEPLOYMENT: $(AZURE_OPENAI_DEPLOYMENT)
+                AZURE_OPENAI_API_KEY: $(AZURE_OPENAI_API_KEY)
+
+  - stage: SafetyEvaluations
+    displayName: AI Safety Dataset Evaluations
+    dependsOn: Build
+    jobs:
+      - job: SafetyEvaluations
+        timeoutInMinutes: 30
+        steps:
+          - template: .azure-pipelines/pytest-steps.yml
+            parameters:
+              suite: safety-evaluations
+              targets:
+                - tests/evals/test_safety_evals.py
+              environment:
+                PLANNER_EVAL_AGENT: $(PLANNER_EVAL_AGENT)
+                AZURE_OPENAI_ENDPOINT: $(AZURE_OPENAI_ENDPOINT)
+                AZURE_OPENAI_DEPLOYMENT: $(AZURE_OPENAI_DEPLOYMENT)
+                AZURE_OPENAI_API_KEY: $(AZURE_OPENAI_API_KEY)
+
+  - stage: PlaywrightE2E
+    displayName: Deterministic Browser E2E (Mocked AI)
+    dependsOn: Build
+    jobs:
+      - job: PlaywrightE2E
+        timeoutInMinutes: 20
+        steps:
+          - checkout: self
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+          - bash: python -m pip install -r requirements.txt
+            displayName: Install Python Dependencies
+          - bash: npm ci
+            displayName: Install Locked Node Dependencies
+          - bash: npx playwright install --with-deps chromium
+            displayName: Install Chromium and System Dependencies
+          - bash: npm run test:e2e -- --fail-on-flaky-tests
+            displayName: Run Playwright E2E Tests
+            env:
+              CI: 'true'
+              PLAYWRIGHT_PYTHON: $(pythonLocation)/bin/python
+              PLANNER_AGENT_PROVIDER: deterministic
+          - bash: |
+              set -euo pipefail
+              destination="$(Build.ArtifactStagingDirectory)/playwright"
+              mkdir -p "$destination"
+              for directory in playwright-report test-results; do
+                if [ -d "$directory" ]; then
+                  cp -R "$directory" "$destination/"
+                fi
+              done
+            displayName: Collect HTML Report, JUnit, Traces, and Screenshots
+            condition: always()
+          - task: PublishPipelineArtifact@1
+            displayName: Upload Playwright Results and Failure Evidence
+            condition: always()
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/playwright
+              artifact: playwright
+
+  - stage: RAGUnitTests
+    displayName: Local RAG Deterministic Unit and API Tests
+    dependsOn: Build
+    jobs:
+      - job: RAGUnitTests
+        timeoutInMinutes: 15
+        steps:
+          - template: .azure-pipelines/pytest-steps.yml
+            parameters:
+              suite: rag-unit-tests
+              publishResults: true
+              targets:
+                - tests/test_contracts.py::RAGContractTests
+                - tests/unit/test_document_loader.py
+                - tests/unit/test_chunker.py
+                - tests/unit/test_retriever.py
+                - tests/unit/test_ranking.py
+                - tests/unit/test_embeddings.py
+                - tests/unit/test_vector_store.py
+                - tests/unit/test_vector_retriever.py
+                - tests/unit/test_hybrid_retriever.py
+                - tests/unit/test_reranker.py
+                - tests/unit/test_rag_service.py
+                - tests/unit/test_rag_tracing.py
+                - tests/test_api.py::RAGApiTests
+
+  - stage: RAGGoldenEvaluations
+    displayName: Local RAG Frozen Golden and Retrieval Comparisons
+    dependsOn: Build
+    jobs:
+      - job: RAGGoldenEvaluations
+        timeoutInMinutes: 20
+        steps:
+          - template: .azure-pipelines/pytest-steps.yml
+            parameters:
+              suite: rag-golden-evaluations
+              publishResults: true
+              baselineDataset: tests/evals/rag-evals.json
+              reportDirectory: ci-results
+              targets:
+                - tests/evals/test_rag_evals.py
+                - tests/evals/test_retriever_comparison.py
+
+  - stage: RAGSafetyEvaluations
+    displayName: Local RAG Frozen Safety Evaluations
+    dependsOn: Build
+    jobs:
+      - job: RAGSafetyEvaluations
+        timeoutInMinutes: 15
+        steps:
+          - template: .azure-pipelines/pytest-steps.yml
+            parameters:
+              suite: rag-safety-evaluations
+              publishResults: true
+              reportDirectory: ci-results
+              targets:
+                - tests/evals/test_rag_safety_evals.py
+
+  - stage: RAGE2E
+    displayName: Local Deterministic RAG Browser Tests
+    dependsOn: Build
+    jobs:
+      - job: RAGE2E
+        timeoutInMinutes: 20
+        steps:
+          - checkout: self
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+          - bash: python -m pip install -r requirements.txt
+            displayName: Install Local Application Dependencies
+          - bash: npm ci
+            displayName: Install Locked Node Dependencies
+          - bash: npx playwright install --with-deps chromium
+            displayName: Install Chromium and System Dependencies
+          - bash: |
+              set -euo pipefail
+              test -f tests/e2e/rag-study.spec.ts
+              npm run test:e2e -- tests/e2e/rag-study.spec.ts --fail-on-flaky-tests
+            displayName: Run Required RAG Playwright Suite
+            env:
+              CI: 'true'
+              PLAYWRIGHT_PYTHON: $(pythonLocation)/bin/python
+              PLANNER_AGENT_PROVIDER: deterministic
+          - task: PublishTestResults@2
+            displayName: Publish RAG Playwright Stage Results
+            condition: always()
+            inputs:
+              testResultsFormat: JUnit
+              searchFolder: $(Build.SourcesDirectory)
+              testResultsFiles: test-results/playwright/results.xml
+              testRunTitle: Local RAG Playwright Chromium
+              failTaskOnFailedTests: true
+              failTaskOnMissingResultsFile: true
+              failTaskOnFailureToPublishResults: true
+          - bash: |
+              set -euo pipefail
+              destination="$(Build.ArtifactStagingDirectory)/rag-playwright"
+              mkdir -p "$destination"
+              for directory in playwright-report test-results; do
+                if [ -d "$directory" ]; then
+                  cp -R "$directory" "$destination/"
+                fi
+              done
+              test -s playwright-report/index.html
+            displayName: Collect RAG HTML, XML, Traces, and Failure Screenshots
+            condition: always()
+          - task: PublishPipelineArtifact@1
+            displayName: Upload RAG Playwright Results and Failure Evidence
+            condition: always()
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/rag-playwright
+              artifact: rag-playwright
+
+  - stage: PublishResults
+    displayName: Publish All Available Test Results
+    dependsOn:
+      - Build
+      - UnitTests
+      - APITests
+      - AgentEvaluations
+      - SafetyEvaluations
+      - PlaywrightE2E
+      - RAGUnitTests
+      - RAGGoldenEvaluations
+      - RAGSafetyEvaluations
+      - RAGE2E
+    condition: always()
+    jobs:
+      - job: PublishResults
+        timeoutInMinutes: 10
+        steps:
+          - checkout: none
+          - task: DownloadPipelineArtifact@2
+            displayName: Download Available Result Artifacts
+            condition: always()
+            inputs:
+              buildType: current
+              targetPath: $(Pipeline.Workspace)/test-artifacts
+          - ${{ each suite in split('unit-tests,api-tests,agent-evaluations,safety-evaluations,rag-unit-tests,rag-golden-evaluations,rag-safety-evaluations', ',') }}:
+              - task: PublishTestResults@2
+                displayName: Publish ${{ suite }} Pytest Results
+                condition: always()
+                inputs:
+                  testResultsFormat: JUnit
+                  searchFolder: $(Pipeline.Workspace)/test-artifacts
+                  testResultsFiles: ${{ suite }}/results.xml
+                  testRunTitle: ${{ suite }}
+                  mergeTestResults: true
+                  failTaskOnFailedTests: true
+                  failTaskOnMissingResultsFile: true
+                  failTaskOnFailureToPublishResults: true
+          - task: PublishTestResults@2
+            displayName: Publish Playwright Results
+            condition: always()
+            inputs:
+              testResultsFormat: JUnit
+              searchFolder: $(Pipeline.Workspace)/test-artifacts
+              testResultsFiles: playwright/test-results/playwright/results.xml
+              testRunTitle: Playwright Chromium
+              failTaskOnFailedTests: true
+              failTaskOnMissingResultsFile: true
+              failTaskOnFailureToPublishResults: true
+          - task: PublishTestResults@2
+            displayName: Publish RAG Playwright Results
+            condition: always()
+            inputs:
+              testResultsFormat: JUnit
+              searchFolder: $(Pipeline.Workspace)/test-artifacts
+              testResultsFiles: rag-playwright/test-results/playwright/results.xml
+              testRunTitle: Local RAG Playwright Chromium
+              failTaskOnFailedTests: true
+              failTaskOnMissingResultsFile: true
+              failTaskOnFailureToPublishResults: true

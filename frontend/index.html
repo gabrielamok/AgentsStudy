@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#edf46a"><title>AI Daily Planner</title>
+	<link rel="stylesheet" href="/styles.css"><script src="/app.js" defer></script>
+</head>
+<body>
+	<header><a class="brand" href="/">AI Daily Planner<span class="brand-mark" aria-hidden="true">/</span></a><span class="edition">A little structure. A clearer day.</span></header>
+	<main>
+		<section class="day-heading"><div><p class="eyebrow">YOUR DAILY AGENDA</p><h1 id="day-title">Your day, in order.</h1></div><label class="date-label">Selected day<input id="day" type="date" required></label></section>
+		<p id="status" role="status" aria-live="polite" hidden></p>
+		<div class="workspace">
+			<section class="agenda" aria-labelledby="agenda-title">
+				<div class="section-heading"><h2 id="agenda-title">Schedule</h2><span id="task-count">0 tasks</span></div>
+				<div id="task-list" aria-live="polite"></div>
+				<section id="draft-section" class="draft-section" hidden aria-labelledby="draft-title"><div class="section-heading"><h2 id="draft-title">Proposed plan</h2><span>Not saved</span></div><ul id="warnings"></ul><div id="draft-list"></div></section>
+			</section>
+			<aside>
+				<section class="task-editor" aria-labelledby="editor-title">
+					<p class="eyebrow">MAKE ROOM FOR WHAT MATTERS</p><h2 id="editor-title">Add a task</h2>
+					<form id="task-form">
+						<label>Title<input id="title" name="title" maxlength="200" required placeholder="What needs your attention?"></label>
+						<div class="field-pair"><label>Start<input id="start" name="start" type="time" required value="09:00"></label><label>End<input id="end" name="end" type="time" required value="10:00"></label></div>
+						<div class="field-pair"><label>Priority<select id="priority" name="priority"><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select></label><label>Type<select id="type" name="type"><option value="flexible">Flexible</option><option value="fixed">Fixed</option></select></label></div>
+						<div class="form-actions"><button id="save-task" class="primary" type="submit">Add task</button><button id="cancel-edit" class="quiet" type="button" hidden>Cancel edit</button></div>
+					</form>
+				</section>
+				<section class="planner" aria-labelledby="planner-title"><p class="eyebrow">A HEAD START</p><h2 id="planner-title">Plan the day</h2>
+					<form id="planner-form"><label>Planning request<textarea id="request" rows="5" maxlength="4000" required placeholder="Study AI-103 for 1 hour; Review PR for 30 minutes before 11 AM; Lunch from 12 PM to 1 PM"></textarea></label>
+						<div class="field-pair"><label>Day starts<input id="work-start" type="time" value="09:00" required></label><label>Day ends<input id="work-end" type="time" value="17:00" required></label></div>
+						<label>Buffer (minutes)<input id="buffer" type="number" min="0" max="60" value="10" required></label><button class="dark" type="submit">Create proposal</button>
+					</form>
+				</section>
+			</aside>
+		</div>
+	</main>
+	<footer><span>AI DAILY PLANNER</span><span>One day at a time.</span></footer>
+</body>
+</html>

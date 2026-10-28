@@ -1,0 +1,119 @@
+parameters:
+  - name: suite
+    type: string
+  - name: targets
+    type: object
+  - name: environment
+    type: object
+    default:
+      PLANNER_AGENT_PROVIDER: deterministic
+  - name: publishResults
+    type: boolean
+    default: false
+  - name: reportDirectory
+    type: string
+    default: ''
+  - name: baselineDataset
+    type: string
+    default: ''
+
+steps:
+  - checkout: self
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: $(pythonVersion)
+  - bash: python -m pip install -r requirements-dev.txt
+    displayName: Install Pytest and Application Dependencies
+  - bash: |
+      set -euo pipefail
+      mkdir -p "$RESULT_DIRECTORY"
+      read -r -a targets <<< "$PYTEST_TARGETS"
+      for target in "${targets[@]}"; do
+        if [ ! -e "${target%%::*}" ]; then
+          printf '##vso[task.logissue type=error]Required test runner is missing: %s. Dataset-only checks do not count as behavioral evaluations.\n' "$target"
+          exit 1
+        fi
+      done
+      python -m pytest "${targets[@]}" -q --junitxml="$RESULT_DIRECTORY/results.xml"
+    displayName: Run ${{ parameters.suite }}
+    env:
+      RESULT_DIRECTORY: $(Build.ArtifactStagingDirectory)/${{ parameters.suite }}
+      PYTEST_TARGETS: ${{ join(' ', parameters.targets) }}
+      ${{ insert }}: ${{ parameters.environment }}
+  - ${{ if ne(parameters.baselineDataset, '') }}:
+      - bash: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          directory = Path(os.environ['RESULT_DIRECTORY'])
+          dataset = json.loads(Path(os.environ['BASELINE_DATASET']).read_text(encoding='utf-8'))
+          expected = {case['id'] for case in dataset}
+          outcomes = {}
+          for case in ElementTree.parse(directory / 'results.xml').iter('testcase'):
+              identifier = case.get('name', '').rsplit('[', 1)[-1].removesuffix(']')
+              if identifier not in expected:
+                  continue
+              if identifier in outcomes:
+                  raise ValueError('Duplicate evaluation result: ' + identifier)
+              outcomes[identifier] = (
+                  'failed' if case.find('failure') is not None or case.find('error') is not None
+                  else 'skipped' if case.find('skipped') is not None else 'passed'
+              )
+          passed = sum(outcome == 'passed' for outcome in outcomes.values())
+          failed = sum(outcome == 'failed' for outcome in outcomes.values())
+          unexecuted = len(expected) - passed - failed
+          lines = [
+              '# Local RAG Golden Baseline', '',
+              f'- Dataset: {os.environ["BASELINE_DATASET"]}',
+              f'- Total: {len(expected)}; passed: {passed}; failed: {failed}; unexecuted/skipped: {unexecuted}.',
+              f'- Pass rate: {passed / len(expected):.2%}.',
+              '- Only frozen dataset cases are counted; comparison/integrity tests are excluded.',
+              '- Failures retain their original pytest/JUnit diagnostics and failing exit status.', '',
+              '| Case | Outcome |', '| --- | --- |',
+          ]
+          lines.extend(f'| {identifier} | {outcomes.get(identifier, "unexecuted")} |' for identifier in sorted(expected))
+          (directory / 'rag-golden-baseline.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          if unexecuted:
+              raise ValueError('Golden dataset cases were skipped or not executed')
+          PY
+        displayName: Record Frozen Golden Baseline Without Suppressing Failures
+        condition: always()
+        env:
+          RESULT_DIRECTORY: $(Build.ArtifactStagingDirectory)/${{ parameters.suite }}
+          BASELINE_DATASET: ${{ parameters.baselineDataset }}
+  - ${{ if ne(parameters.reportDirectory, '') }}:
+      - bash: |
+          set -euo pipefail
+          mkdir -p "$RESULT_DIRECTORY/reports"
+          test -d "$REPORT_DIRECTORY"
+          cp -R "$REPORT_DIRECTORY/." "$RESULT_DIRECTORY/reports/"
+        displayName: Collect Baseline and Comparison Reports
+        condition: always()
+        env:
+          RESULT_DIRECTORY: $(Build.ArtifactStagingDirectory)/${{ parameters.suite }}
+          REPORT_DIRECTORY: ${{ parameters.reportDirectory }}
+  - ${{ if eq(parameters.publishResults, true) }}:
+      - task: PublishTestResults@2
+        displayName: Publish ${{ parameters.suite }} Stage Results
+        condition: always()
+        inputs:
+          testResultsFormat: JUnit
+          searchFolder: $(Build.ArtifactStagingDirectory)/${{ parameters.suite }}
+          testResultsFiles: results.xml
+          testRunTitle: ${{ parameters.suite }}
+          failTaskOnFailedTests: true
+          failTaskOnMissingResultsFile: true
+          failTaskOnFailureToPublishResults: true
+  - bash: mkdir -p "$(Build.ArtifactStagingDirectory)/${{ parameters.suite }}"
+    displayName: Ensure Result Artifact Directory Exists
+    condition: always()
+  - task: PublishPipelineArtifact@1
+    displayName: Upload ${{ parameters.suite }} Results
+    condition: always()
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/${{ parameters.suite }}
+      artifact: ${{ parameters.suite }}
